@@ -76,7 +76,13 @@ jobs:
 
       - name: Pack npm tarball (.tgz) from pkg/
         working-directory: dji-log-parser-js/pkg
-        run: npm pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm pack
+          VER="${GITHUB_REF_NAME#v}"
+          TGZ="$(ls -1 *.tgz | head -n 1)"
+          mv "$TGZ" "dji-log-parser-${VER}.tgz"
 
       - name: Upload npm tarball to GitHub Release
         env:
@@ -85,5 +91,5 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
-          FILE="$(ls dji-log-parser-js/pkg/*.tgz | head -n 1)"
+          FILE="dji-log-parser-js/pkg/dji-log-parser-${TAG#v}.tgz"
           gh release upload "$TAG" "$FILE" --clobber
