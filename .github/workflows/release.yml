@@ -52,24 +52,30 @@ jobs:
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
           CARGO_PROFILE_RELEASE_LTO: true
 
-  upload-node-package:
+  build-node-package:
     needs: create-release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: https://registry.npmjs.org/
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install wasm-pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo install wasm-pack --locked
 
-      - name: Build (if present)
-        run: npm run build --if-present
+      - name: Build Node package (wasm-pack -> pkg/)
+        working-directory: dji-log-parser-js
+        shell: bash
+        run: |
+          set -euo pipefail
+          wasm-pack build --release --target nodejs
 
-      - name: Pack npm package (.tgz)
+      - name: Pack npm tarball (.tgz) from pkg/
+        working-directory: dji-log-parser-js/pkg
         run: npm pack
 
       - name: Upload npm tarball to GitHub Release
@@ -79,5 +85,5 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
-          FILE="$(ls -1 *.tgz | head -n 1)"
+          FILE="$(ls dji-log-parser-js/pkg/*.tgz | head -n 1)"
           gh release upload "$TAG" "$FILE" --clobber
