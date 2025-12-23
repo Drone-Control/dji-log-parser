@@ -1,5 +1,6 @@
 use binrw::binread;
 use serde::Serialize;
+use serde_with::{serde_as, DisplayFromStr};
 #[cfg(target_arch = "wasm32")]
 use tsify_next::Tsify;
 
@@ -39,6 +40,7 @@ pub struct SmartBatteryStatic {
 }
 
 #[binread]
+#[serde_as]
 #[derive(Serialize, Debug)]
 #[br(little)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
@@ -59,6 +61,8 @@ pub struct SmartBatteryDynamic {
     pub temperature: f32,
     pub cell_count: u8,
     pub capacity_percent: u8,
+    //Big int to String fix
+    #[serde_as(as = "DisplayFromStr")]
     pub battery_state: u64,
 }
 
