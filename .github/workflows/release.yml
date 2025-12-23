@@ -1,7 +1,7 @@
 name: Release
 
 permissions:
-  contents: read
+  contents: write
 
 on:
   push:
@@ -9,26 +9,75 @@ on:
       - master
 
 jobs:
-  publish-npm:
+  create-release:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          token: ${{ secrets.DRONETOKEN }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+  upload-assets:
+    needs: create-release
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: universal-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: dji-log
+          tar: unix
+          zip: windows
+          target: ${{ matrix.target }}
+          token: ${{ secrets.DRONETOKEN }}
+        env:
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+          CARGO_PROFILE_RELEASE_LTO: true
+
+  upload-node-package:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org/
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
-      - name: Build package
+      - name: Build (if present)
         run: npm run build --if-present
 
-      - name: Publish to npm
-        run: npm publish
+      - name: Pack npm package (.tgz)
+        run: npm pack
+
+      - name: Upload npm tarball to GitHub Release
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.DRONETOKEN }}
+          GITHUB_TOKEN: ${{ secrets.DRONETOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          FILE="$(ls -1 *.tgz | head -n 1)"
+          gh release upload "$TAG" "$FILE" --clobber
