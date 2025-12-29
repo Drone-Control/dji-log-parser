@@ -91,7 +91,7 @@ jobs:
             const fs = require('fs');
             const p = '$PKG_JSON';
             const j = JSON.parse(fs.readFileSync(p, 'utf8'));
-            j.name = '@asd/dji-log-parser';
+            j.name = '@Drone-Control/dji-log-parser';
             j.version = '$VERSION';
             j.publishConfig = { registry: 'https://npm.pkg.github.com/' };
             fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
